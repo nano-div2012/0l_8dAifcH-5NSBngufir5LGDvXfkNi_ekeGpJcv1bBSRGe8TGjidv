@@ -1,11 +1,235 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
-    <meta http-equiv="Refresh" content="0; url='https://example.com/'" />
-    <script>window.location.replace("https://example.com/");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BLOXBID - Owner Verified</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box} body{font-family:sans-serif;background:#0f0f0f;color:#fff;padding:15px;margin:0;padding-bottom:90px}
+.card{background:#1e1e1e;padding:15px;border-radius:16px;max-width:480px;margin:0 auto 12px}
+#foto{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #00ff88;background:#333}
+button{background:#00ff88;border:0;padding:10px 14px;border-radius:10px;font-weight:900;margin:3px}
+input{width:100%;padding:11px;margin:5px 0;border-radius:10px;border:0}
+.tab{display:flex;gap:8px} .tab button{flex:1;background:#333;color:#aaa} .tab button.on{background:#00ff88;color:#000}
+.filter{display:flex;gap:6px;margin-top:10px} .filter button{flex:1;background:#333;color:#aaa;font-size:13px} .filter button.on{background:#fff;color:#000}
+#chatBox{height:300px;overflow-y:auto;background:#111;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:10px}
+.msg{display:flex;gap:8px;align-items:flex-start;max-width:85%} .msg.me{flex-direction:row-reverse;margin-left:auto;text-align:right}
+.msg img{width:36px;height:36px;border-radius:50%;object-fit:cover}
+.bubble{background:#2a2a2a;padding:8px 11px;border-radius:12px;font-size:14px} .me .bubble{background:#00ff88;color:#000}
+.small{font-size:11px;color:#aaa}
+.bar{position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;padding:10px;display:flex;gap:8px;max-width:480px;margin:0 auto}
+.bar input{margin:0}
+.free-tag{background:#00ff88;color:#000;font-size:11px;font-weight:900;padding:3px 8px;border-radius:20px}
+.item{display:flex;gap:12px;background:#2a2a2a;padding:12px;border-radius:12px;margin-top:8px;align-items:center}
+.item .emoji{font-size:32px}
+.verified{color:#1DA1F2;font-size:16px}
+.owner-tag{background:#1DA1F2;color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:900}
+.reqBox{background:#2a2a2a;padding:10px;border-radius:12px;margin-top:8px;display:flex;gap:10px;align-items:center}
+</style>
 </head>
-<body style="margin:0;padding:0;background-color:#ffffff;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
-    Redirecting...
+<body>
+<h1 style="text-align:center">🔥 BLOXBID</h1>
+<p style="text-align:center;color:#00ff88;font-weight:900;margin-top:-10px">BAJU & CELANA GRATIS!</p>
+
+<div class="card" style="text-align:center">
+<img id="foto" src="https://i.pravatar.cc/200">
+<h2 id="namaTampil" style="margin:8px 0 2px">Pemain BLOXBID</h2>
+<p id="ownerLabel" style="font-size:12px;color:#1DA1F2;font-weight:900;display:none">✔️ PEMILIK BLOXBID - VERIFIED</p>
+<p id="status" style="font-size:12px;color:#aaa">Menghubungkan...</p>
+<input id="nama" placeholder="Nama lu">
+<button onclick="document.getElementById('pilihFoto').click()">📸 GANTI FOTO</button>
+<input type="file" id="pilihFoto" accept="image/*" style="display:none" onchange="gantiFoto(event)">
+<button onclick="simpan()">SIMPAN</button>
+</div>
+
+<div class="card">
+<div class="tab">
+<button id="btnGratis" class="on" onclick="show('gratis')">🎁 GRATIS</button>
+<button id="btnChat" onclick="show('chat')">💬 CHAT</button>
+<button id="btnTeman" onclick="show('teman')">👥 TEMAN</button>
+</div>
+
+<div id="pageGratis" style="margin-top:12px">
+<div class="filter">
+<button id="fSemua" class="on" onclick="setFilter('Semua')">Semua</button>
+<button id="fBaju" onclick="setFilter('Baju')">👕 Baju</button>
+<button id="fCelana" onclick="setFilter('Celana')">👖 Celana</button>
+</div>
+<div id="list"></div>
+</div>
+
+<div id="pageChat" style="display:none;margin-top:12px"><div id="chatBox"></div></div>
+
+<div id="pageTeman" style="display:none;margin-top:12px">
+<b style="color:#FFD700">📩 Permintaan Teman Masuk:</b>
+<div id="listReq"><p style="color:#aaa;font-size:13px">Belum ada permintaan</p></div>
+<hr style="border-color:#333">
+<b>🔍 Cari Nama Temen Buat Mabar:</b>
+<input id="cariTeman" placeholder="🔍 Cari Nama Temen..." oninput="cari()">
+<div id="listTeman"></div>
+</div>
+</div>
+
+<div class="bar" id="barChat" style="display:none">
+<input id="pesan" placeholder="Ketik chat..." onkeypress="if(event.key==='Enter') kirimChat()">
+<button onclick="kirimChat()">KIRIM</button>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDQKT8NpSaGjW8MdFjbAtCrnNcLKxHR_Z0",
+  authDomain: "bloxbid-636d9.firebaseapp.com",
+  projectId: "bloxbid-636d9",
+  storageBucket: "bloxbid-636d9.firebasestorage.app",
+  messagingSenderId: "628326593697",
+  appId: "1:628326593697:web:49816c546a2d04e6082ce0",
+  measurementId: "G-GE5M5PDE9S"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+let myId = localStorage.getItem('bloxbid_id');
+if(!myId){ myId='user_'+Date.now(); localStorage.setItem('bloxbid_id',myId); }
+let fotoBaru='', namaSaya='Pemain BLOXBID', fotoSaya='https://i.pravatar.cc/200', filterAktif='Semua', ownerId='', allUsers={};
+
+const KATALOG = [
+  {nama:'Hoodie Hitam Oversize', kategori:'Baju', emoji:'👕'},
+  {nama:'Kaos Putih Polos', kategori:'Baju', emoji:'👕'},
+  {nama:'Kaos Streetwear Grafis', kategori:'Baju', emoji:'👕'},
+  {nama:'Jaket Bomber Hitam', kategori:'Baju', emoji:'🧥'},
+  {nama:'Kemeja Flanel Kotak', kategori:'Baju', emoji:'👔'},
+  {nama:'Hoodie Putih Simple', kategori:'Baju', emoji:'👕'},
+  {nama:'Sweater Abu-abu', kategori:'Baju', emoji:'🧶'},
+  {nama:'Jaket Denim Biru', kategori:'Baju', emoji:'🧥'},
+  {nama:'Celana Jeans Biru', kategori:'Celana', emoji:'👖'},
+  {nama:'Celana Cargo Hitam', kategori:'Celana', emoji:'👖'},
+  {nama:'Celana Jogger Abu', kategori:'Celana', emoji:'👖'},
+  {nama:'Celana Pendek Santai', kategori:'Celana', emoji:'🩳'},
+  {nama:'Celana Jeans Hitam', kategori:'Celana', emoji:'👖'},
+  {nama:'Celana Chino Cream', kategori:'Celana', emoji:'👖'},
+  {nama:'Celana Baggy Coklat', kategori:'Celana', emoji:'👖'},
+  {nama:'Celana Training Hitam', kategori:'Celana', emoji:'👖'},
+];
+
+function isOwner(id){ return id===ownerId; }
+function namaDenganCentang(nama, id){
+  return isOwner(id) ? nama + ' <span class="verified">✔️</span> <span class="owner-tag">OWNER</span>' : nama;
+}
+
+function show(p){
+  document.getElementById('pageGratis').style.display = p==='gratis'?'block':'none';
+  document.getElementById('pageChat').style.display = p==='chat'?'block':'none';
+  document.getElementById('pageTeman').style.display = p==='teman'?'block':'none';
+  document.getElementById('barChat').style.display = p==='chat'?'flex':'none';
+  document.getElementById('btnGratis').className = p==='gratis'?'on':'';
+  document.getElementById('btnChat').className = p==='chat'?'on':'';
+  document.getElementById('btnTeman').className = p==='teman'?'on':'';
+}
+function gantiFoto(e){
+  const f=e.target.files[0]; if(!f) return;
+  if(f.size>800000) return alert('Foto kegedean, pilih <800KB');
+  const r=new FileReader(); r.onload=()=>{ fotoBaru=r.result; document.getElementById('foto').src=fotoBaru; }; r.readAsDataURL(f);
+}
+function simpan(){
+  const n=document.getElementById('nama').value;
+  let d={}; if(n) d.nama=n; if(fotoBaru) d.foto=fotoBaru;
+  if(!n && !fotoBaru) return alert('Isi nama / ganti foto dulu');
+  // Orang pertama yang simpan jadi OWNER - cuma dia yang centang biru
+  db.ref('owner').once('value').then(s=>{
+    if(!s.val()) db.ref('owner').set(myId);
+  });
+  db.ref('users/'+myId).update(d).then(()=>alert('Kesimpen ✅'));
+}
+// Cek siapa OWNER nya
+db.ref('owner').on('value', s=>{
+  ownerId = s.val() || '';
+  if(ownerId===myId) document.getElementById('ownerLabel').style.display='block';
+  else document.getElementById('ownerLabel').style.display='none';
+  renderTeman();
+});
+db.ref('users/'+myId).on('value', s=>{
+  document.getElementById('status').innerText='✅ CONNECTED';
+  document.getElementById('status').style.color='#00ff88';
+  const d=s.val(); if(!d) return;
+  if(d.nama){ namaSaya=d.nama; document.getElementById('namaTampil').innerHTML = namaDenganCentang(d.nama, myId); document.getElementById('nama').value=d.nama; }
+  if(d.foto){ fotoSaya=d.foto; document.getElementById('foto').src=d.foto; }
+});
+function setFilter(f){
+  filterAktif=f;
+  document.getElementById('fSemua').className = f==='Semua'?'on':'';
+  document.getElementById('fBaju').className = f==='Baju'?'on':'';
+  document.getElementById('fCelana').className = f==='Celana'?'on':'';
+  renderList();
+}
+function renderList(){
+  let html='';
+  KATALOG.forEach((item, idx)=>{
+    if(filterAktif!=='Semua' && item.kategori!==filterAktif) return;
+    const diambil = localStorage.getItem('ambil_'+idx);
+    html+=`<div class="item"><div class="emoji">${item.emoji}</div><div style="flex:1;text-align:left"><b>${item.nama}</b> <span class="free-tag">GRATIS</span><br><span style="font-size:12px;color:#aaa">${item.kategori} • BLOXBID Official</span></div><button onclick="ambil(${idx},'${item.nama}')" ${diambil?'style="background:#333;color:#888"':''}>${diambil?'UDAH DIAMBIL ✅':'AMBIL 🎁'}</button></div>`;
+  });
+  document.getElementById('list').innerHTML=html;
+}
+function ambil(idx, nama){
+  localStorage.setItem('ambil_'+idx, '1');
+  alert('🎉 ' + nama + ' berhasil lu ambil GRATIS!');
+  renderList();
+}
+renderList();
+function kirimChat(){
+  const inp=document.getElementById('pesan'); const teks=inp.value.trim(); if(!teks) return;
+  db.ref('chat_global').push({nama:namaSaya, foto:fotoSaya, teks, sender:myId, time:Date.now()});
+  inp.value='';
+}
+db.ref('chat_global').limitToLast(50).on('value', s=>{
+  const data=s.val()||{}; let html='';
+  Object.values(data).forEach(m=>{
+    const me = m.sender===myId ? 'me':'';
+    html+=`<div class="msg ${me}"><img src="${m.foto}"><div><div class="small">${namaDenganCentang(m.nama, m.sender)}</div><div class="bubble">${m.teks}</div></div></div>`;
+  });
+  const box=document.getElementById('chatBox');
+  box.innerHTML=html||'<p style="color:#aaa;text-align:center">Belum ada chat!</p>';
+  box.scrollTop=box.scrollHeight;
+});
+// --- SISTEM TEMAN: CARI -> KIRIM -> TERIMA ---
+function kirimPermintaan(targetId, targetNama){
+  db.ref('requests/'+targetId+'/'+myId).set({dariId:myId, dariNama:namaSaya, dariFoto:fotoSaya, time:Date.now()});
+  alert('Permintaan dikirim ke ' + targetNama + '! Tinggal tunggu dia TERIMA ✔️');
+}
+function terimaReq(dariId){
+  db.ref('friends/'+myId+'/'+dariId).set(true);
+  db.ref('friends/'+dariId+'/'+myId).set(true);
+  db.ref('requests/'+myId+'/'+dariId).remove();
+  alert('Udah jadi temen! Bisa mabar sekarang 🎮');
+}
+function tolakReq(dariId){
+  db.ref('requests/'+myId+'/'+dariId).remove();
+}
+db.ref('users').on('value', s=>{
+  allUsers = s.val()||{};
+  renderTeman();
+});
+function renderTeman(){
+  let html='';
+  Object.entries(allUsers).forEach(([id,u])=>{
+    if(id===myId) return;
+    html+=`<div style="display:flex;gap:10px;align-items:center;background:#2a2a2a;padding:10px;border-radius:12px;margin-top:8px" data-nama="${(u.nama||'').toLowerCase()}"><img src="${u.foto||'https://i.pravatar.cc/200'}" style="width:44px;height:44px;border-radius:50%;object-fit:cover"><div style="flex:1;text-align:left"><b>${namaDenganCentang(u.nama||'Pemain', id)}</b><br><span style="font-size:12px;color:#aaa">Online</span></div><button onclick="kirimPermintaan('${id}','${u.nama||'Pemain'}')">+ TAMBAH</button></div>`;
+  });
+  document.getElementById('listTeman').innerHTML=html||'<p style="color:#aaa">Belum ada temen online.</p>';
+}
+db.ref('requests/'+myId).on('value', s=>{
+  const data=s.val()||{};
+  let html='';
+  Object.entries(data).forEach(([dariId, req])=>{
+    html+=`<div class="reqBox"><img src="${req.dariFoto||'https://i.pravatar.cc/200'}" style="width:44px;height:44px;border-radius:50%;object-fit:cover"><div style="flex:1;text-align:left"><b>${namaDenganCentang(req.dariNama, dariId)}</b><br><span style="font-size:12px;color:#aaa">Mau jadi temen lu</span></div><button onclick="terimaReq('${dariId}')">TERIMA ✔️</button><button onclick="tolakReq('${dariId}')" style="background:#333;color:#fff">TOLAK</button></div>`;
+  });
+  document.getElementById('listReq').innerHTML = html || '<p style="color:#aaa;font-size:13px">Belum ada permintaan</p>';
+});
+function cari(){
+  const q=document.getElementById('cariTeman').value.toLowerCase();
+  document.querySelectorAll('#listTeman > div').forEach(d=>{ d.style.display = d.getAttribute('data-nama').includes(q)?'flex':'none'; });
+}
+</script>
 </body>
 </html>
